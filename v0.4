@@ -1,0 +1,466 @@
+openapi: 3.0.3
+info:
+  title: Language Learning App API 4.0
+  description: Для создания и прохождения сценариев
+  version: 0.4 alpha
+servers:
+  - url: https://api.languageapp.com/v0.4
+    description: Main API server
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Scenario:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier of the scenario.
+          example: "scen_123"
+        title:
+          type: string
+          description: Title of the scenario (max 120 characters).
+          example: "Airport Adventure"
+          maxLength: 120
+        description:
+          type: string
+          description: Short description of the scenario (max 120 characters).
+          example: "Learn English at the airport!"
+          maxLength: 120
+        language:
+          $ref: '#/components/schemas/Language'
+        locations:
+          type: array
+          description: List of locations in the scenario (max 10).
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/Location'
+        status:
+          type: string
+          description: Status of the scenario (draft - created, pending_moderation - awaiting review, published - available to users, rejected - returned for revision).
+          enum: [draft, pending_moderation, published, rejected]
+          example: "pending_moderation"
+      required:
+        - title
+        - description
+        - language
+        - locations
+
+    Location:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the location.
+          example: "Check-in Counter"
+        image:
+          type: string
+          description: Base64-encoded image for the location (max 50MB, recommended resolution 480px width). Ensure the encoded string does not exceed 50MB when decoded.
+          example: "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
+        dialogues:
+          type: array
+          description: List of dialogue phrases (max 50 phrases).
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/Dialogue'
+      required:
+        - name
+        - image
+        - dialogues
+
+    Dialogue:
+      type: object
+      properties:
+        prompt:
+          type: string
+          description: The prompt or question in the dialogue.
+          example: "Can I see your passport?"
+        options:
+          type: array
+          description: List of response options (at least 1, typically 3).
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/DialogueOption'
+      required:
+        - prompt
+        - options
+
+    DialogueOption:
+      type: object
+      properties:
+        text:
+          type: string
+          description: Text of the response option.
+          example: "Here is my passport."
+        isCorrect:
+          type: boolean
+          description: Indicates if this is the correct response.
+          example: true
+        nextDialogueId:
+          type: string
+          description: ID of the next dialogue to proceed to. Use null if this is the last dialogue in the location.
+          example: "dlg_002"
+          nullable: true
+      required:
+        - text
+        - isCorrect
+        - nextDialogueId
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Error code.
+          example: "INVALID_DATA"
+        message:
+          type: string
+          description: Error message.
+          example: "Description exceeds 120 characters by 10 characters."
+      required:
+        - code
+        - message
+
+    ModerationFeedback:
+      type: object
+      properties:
+        comment:
+          type: string
+          description: Feedback from the moderator.
+          example: "Images contain inappropriate content."
+        status:
+          type: string
+          enum: [rejected, approved]
+          example: "rejected"
+      required:
+        - comment
+        - status
+
+    Language:
+      type: string
+      description: Language of the scenario.
+      enum: [english, german, french]
+      example: "english"
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier of the notification.
+          example: "notif_001"
+        message:
+          type: string
+          description: Notification message.
+          example: "Your scenario was rejected: Images contain inappropriate content."
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp of the notification.
+          example: "2025-04-20T10:00:00Z"
+      required:
+        - id
+        - message
+        - createdAt
+
+paths:
+  /scenarios:
+    get:
+      summary: Get list of available scenarios
+      description: Retrieves a list of published scenarios for the selected language.
+      tags:
+        - Scenarios
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: language
+          schema:
+            $ref: '#/components/schemas/Language'
+          required: true
+          description: Language of the scenarios to retrieve.
+      responses:
+        '200':
+          description: List of scenarios retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Scenario'
+        '400':
+          description: Language not supported.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "LANGUAGE_NOT_SUPPORTED"
+                message: "The selected language is not yet available for study."
+        '401':
+          description: Unauthorized access.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Create a new scenario
+      description: Creates a new scenario for language learning.
+      tags:
+        - Scenarios
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Scenario'
+      responses:
+        '201':
+          description: Scenario created successfully and sent for moderation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Scenario'
+        '400':
+          description: Validation error (e.g., image size, description length).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                ImageSizeExceeded:
+                  value:
+                    code: "IMAGE_SIZE_EXCEEDED"
+                    message: "Uploaded images exceed the 50MB file size limit."
+                DescriptionTooLong:
+                  value:
+                    code: "DESCRIPTION_TOO_LONG"
+                    message: "Description exceeds 120 characters by 10 characters."
+        '401':
+          description: Unauthorized access.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /scenarios/{id}:
+    get:
+      summary: Get scenario details
+      description: Retrieves details of a specific scenario by ID.
+      tags:
+        - Scenarios
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: ID of the scenario.
+      responses:
+        '200':
+          description: Scenario details retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Scenario'
+        '404':
+          description: Scenario not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized access.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /scenarios/{id}/moderate:
+    post:
+      summary: Moderate a scenario
+      description: Allows a moderator to approve or reject a scenario.
+      tags:
+        - Moderation
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: ID of the scenario to moderate.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModerationFeedback'
+      responses:
+        '200':
+          description: Scenario moderation completed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Scenario'
+        '400':
+          description: Invalid moderation data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized access (not a moderator).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Scenario not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /scenarios/{id}/progress:
+    post:
+      summary: Submit a dialogue response
+      description: Submits a user's response to a dialogue in a scenario.
+      tags:
+        - Scenarios
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: ID of the scenario.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                dialogueId:
+                  type: string
+                  description: ID of the current dialogue.
+                  example: "dlg_001"
+                selectedOption:
+                  type: string
+                  description: ID of the selected response option.
+                  example: "opt_001"
+              required:
+                - dialogueId
+                - selectedOption
+      responses:
+        '200':
+          description: Response processed successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  isCorrect:
+                    type: boolean
+                    description: Indicates if the selected option was correct.
+                    example: true
+                  nextDialogue:
+                    $ref: '#/components/schemas/Dialogue'
+        '400':
+          description: Incorrect response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "INCORRECT_RESPONSE"
+                message: "The selected option is incorrect."
+        '401':
+          description: Unauthorized access.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Scenario or dialogue not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /scenarios/{id}/complete:
+    post:
+      summary: Complete a scenario
+      description: Marks a scenario as completed by the user.
+      tags:
+        - Scenarios
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: ID of the scenario.
+      responses:
+        '200':
+          description: Scenario completed successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Scenario completed successfully."
+        '401':
+          description: Unauthorized access.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Scenario not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /notifications:
+    get:
+      summary: Get user notifications
+      description: Retrieves notifications for the user (e.g., scenario moderation feedback).
+      tags:
+        - Notifications
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Notifications retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+        '401':
+          description: Unauthorized access.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
