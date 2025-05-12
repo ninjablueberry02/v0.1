@@ -1,0 +1,239 @@
+openapi: 3.0.0
+info:
+  title: API мобильного приложения (v0.1)
+  version: 1.0.0
+  description: Описание API для мобильного приложения
+paths:
+  /api/auth/register:
+    post:
+      summary: Регистрация нового пользователя
+      description: Создаёт нового пользователя и отправляет код подтверждения
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                first_name:
+                  type: string
+                  example: Иван
+                email:
+                  type: string
+                  format: email
+                  example: ivanov@example.com
+                password:
+                  type: string
+                  format: password
+                  example: SecureP@ssword123
+      responses:
+        '201':
+          description: Пользователь зарегистрирован, код подтверждения отправлен
+        '400':
+          description: Ошибка валидации (например, некорректный email)
+        '409':
+          description: Пользователь уже существует
+  /api/auth/register/verify:
+    post:
+      summary: Подтверждение кода регистрации
+      description: Проверяет код, введённый пользователем, и активирует аккаунт
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: ivanov@example.com
+                code:
+                  type: string
+                  example: '123456'
+      responses:
+        '200':
+          description: Регистрация завершена успешно
+        '400':
+          description: Неверный код подтверждения
+        '410':
+          description: Код подтверждения истёк
+  /api/auth/login:
+    post:
+      summary: Авторизация пользователя
+      description: Позволяет зарегистрированному пользователю войти в систему
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: ivan@example.com
+                password:
+                  type: string
+                  format: password
+                  example: securepassword123
+      responses:
+        '200':
+          description: Успешная авторизация
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Авторизация успешна
+                  token:
+                    type: string
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        '400':
+          description: Ошибка валидации
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Некорректный email или пароль
+        '401':
+          description: Неверный email или пароль
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Неверный email или пароль
+  /api/auth/logout:
+    post:
+      summary: Выход пользователя из системы
+      description: Завершает сессию пользователя и инвалидирует токен
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Успешный выход из системы
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Выход из системы выполнен успешно
+        '401':
+          description: Пользователь не авторизован
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Требуется авторизация
+  /api/auth/reset-password:
+    post:
+      summary: Восстановление пароля
+      description: Отправляет пользователю ссылку для сброса пароля
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: ivan@example.com
+      responses:
+        '200':
+          description: Ссылка на сброс пароля отправлена
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Инструкция по сбросу пароля отправлена на email
+        '404':
+          description: Пользователь не найден
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Пользователь с таким email не найден
+  /api/user/profile:
+    post:
+      summary: Создание или обновление профиля пользователя
+      description: Позволяет зарегистрированному пользователю заполнить или обновить свой профиль
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nickname:
+                  type: string
+                  example: SuperUser123
+                phone:
+                  type: string
+                  example: '+77001112233'
+                avatar:
+                  type: string
+                  format: binary
+                  description: Загрузка изображения аватара (максимум 10MB)
+      responses:
+        '200':
+          description: Профиль успешно создан / обновлен
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Профиль успешно обновлён
+        '400':
+          description: Ошибка валидации данных
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Некорректные данные или файл превышает 10MB
+        '401':
+          description: Пользователь не авторизован
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Требуется авторизация
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+servers:
+  - description: SwaggerHub API Auto Mocking
+    url: https://virtserver.swaggerhub.com/bfu/v0.1/1.0.0
