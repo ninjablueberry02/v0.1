@@ -1,0 +1,497 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "v0.2",
+    "description": "API для геймифицированного приложения изучения иностранных языков (Alpha v0.2)",
+    "version": "0.2.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080/api/v1",
+      "description": "Локальный сервер для разработки"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Profile",
+      "description": "Операции, связанные с профилем пользователя"
+    },
+    {
+      "name": "Auth",
+      "description": "Операции, связанные с авторизацией и восстановлением пароля"
+    }
+  ],
+  "paths": {
+    "/profile/nickname": {
+      "patch": {
+        "tags": [
+          "Profile"
+        ],
+        "summary": "Редактирование никнейма",
+        "description": "Обновление никнейма зарегистрированного пользователя",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nickname": {
+                    "type": "string",
+                    "example": "new_nickname"
+                  }
+                },
+                "required": [
+                  "nickname"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Никнейм успешно обновлен",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "nickname": {
+                          "type": "string",
+                          "example": "new_nickname"
+                        }
+                      }
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Никнейм успешно обновлен"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Ошибка валидации",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Никнейм содержит запрещенные символы"
+                    },
+                    "code": {
+                      "type": "string",
+                      "example": "INVALID_NICKNAME"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется авторизация",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorUnauthorized"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Никнейм занят",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Данный никнейм занят"
+                    },
+                    "code": {
+                      "type": "string",
+                      "example": "NICKNAME_TAKEN"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/profile/password": {
+      "patch": {
+        "tags": [
+          "Profile"
+        ],
+        "summary": "Редактирование пароля",
+        "description": "Изменение пароля зарегистрированного пользователя. Бэкенд проверяет хэш `current_password` с хранимым в базе значением. Если хэш совпадает, бэкенд проверяет совпадение `new_password` и `confirm_password`, а затем сохраняет хэш нового пароля.\n",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "current_password": {
+                    "type": "string",
+                    "example": "old_password123"
+                  },
+                  "new_password": {
+                    "type": "string",
+                    "example": "new_password123"
+                  },
+                  "confirm_password": {
+                    "type": "string",
+                    "example": "new_password123"
+                  }
+                },
+                "required": [
+                  "current_password",
+                  "new_password",
+                  "confirm_password"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Пароль успешно обновлен",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Пароль успешно обновлен"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Ошибка валидации",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Пароли не совпадают"
+                        },
+                        "code": {
+                          "type": "string",
+                          "example": "PASSWORDS_MISMATCH"
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Длина пароля не может превышать 8 символов"
+                        },
+                        "code": {
+                          "type": "string",
+                          "example": "PASSWORD_TOO_LONG"
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Пароль содержит запрещенные символы"
+                        },
+                        "code": {
+                          "type": "string",
+                          "example": "INVALID_PASSWORD"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Неверный текущий пароль или отсутствие авторизации",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorUnauthorized"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/password-reset": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Запрос восстановления пароля",
+        "description": "Отправка ссылки для сброса пароля на email пользователя",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "user@example.com"
+                  }
+                },
+                "required": [
+                  "email"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ссылка отправлена",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Ссылка для восстановления пароля отправлена на указанную почту"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Неверный формат email",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Неверный формат электронной почты"
+                    },
+                    "code": {
+                      "type": "string",
+                      "example": "INVALID_EMAIL"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Пользователь не найден",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Пользователь с указанным адресом электронной почты не найден"
+                    },
+                    "code": {
+                      "type": "string",
+                      "example": "USER_NOT_FOUND"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/password-reset/confirm": {
+      "patch": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Подтверждение восстановления пароля",
+        "description": "Установка нового пароля по токену восстановления. Бэкенд валидирует `reset_token` (JWT), проверяя подпись и срок действия (поле `exp` в формате Unix timestamp). Если токен недействителен или просрочен, возвращается ошибка.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reset_token": {
+                    "type": "string",
+                    "example": "token_from_email"
+                  },
+                  "new_password": {
+                    "type": "string",
+                    "example": "new_password123"
+                  },
+                  "confirm_password": {
+                    "type": "string",
+                    "example": "new_password123"
+                  }
+                },
+                "required": [
+                  "reset_token",
+                  "new_password",
+                  "confirm_password"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Пароль успешно восстановлен",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Пароль успешно восстановлен"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Ошибка валидации",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Пароли не совпадают"
+                        },
+                        "code": {
+                          "type": "string",
+                          "example": "PASSWORDS_MISMATCH"
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Пароль содержит запрещенные символы"
+                        },
+                        "code": {
+                          "type": "string",
+                          "example": "INVALID_PASSWORD"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Неверный токен",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Недействительный или просроченный токен"
+                    },
+                    "code": {
+                      "type": "string",
+                      "example": "INVALID_RESET_TOKEN"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "ErrorUnauthorized": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "example": "Требуется авторизация"
+          },
+          "code": {
+            "type": "string",
+            "example": "UNAUTHORIZED"
+          }
+        }
+      }
+    }
+  }
+}
