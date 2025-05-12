@@ -1,0 +1,172 @@
+openapi: 3.0.0
+info:
+  title: Language Selection API v0.3
+  description: API для выбора языка изучения в мобильном приложении. Поддерживаются английский (доступен), немецкий и французский (в разработке).
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3000/api/v0.3
+    description: Локальный сервер для разработки (будет реализован позже)
+
+paths:
+  /languages:
+    get:
+      summary: Получение списка доступных языков
+      description: Возвращает список языков (английский, немецкий, французский), где английский доступен, а немецкий и французский находятся в разработке.
+      operationId: getLanguages
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Список языков успешно получен
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Language'
+              example:
+                status: success
+                data:
+                  - id: 1
+                    name: English
+                    code: en
+                    is_available: true
+                  - id: 2
+                    name: German
+                    code: de
+                    is_available: false
+                  - id: 3
+                    name: French
+                    code: fr
+                    is_available: false
+        '401':
+          description: Неавторизованный доступ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                status: error
+                message: Unauthorized
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                status: error
+                message: Internal Server Error
+
+  /select-language:
+    post:
+      summary: Выбор языка пользователем
+      description: Позволяет выбрать язык. Английский перенаправляет на сценарии, немецкий и французский возвращают ошибку "в разработке".
+      operationId: selectLanguage
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                language_code:
+                  type: string
+                  description: Код языка (en - английский, de - немецкий, fr - французский)
+                  enum: [en, de, fr]
+                  example: en
+              required:
+                - language_code
+      responses:
+        '200':
+          description: Язык успешно выбран (только для английского)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Language selected successfully
+                  redirect:
+                    type: string
+                    example: /scenarios/en
+        '400':
+          description: Выбран недоступный язык (немецкий или французский)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                status: error
+                message: The selected language is not yet available for learning
+        '401':
+          description: Неавторизованный доступ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                status: error
+                message: Unauthorized
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                status: error
+                message: Internal Server Error
+
+components:
+  schemas:
+    Language:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: English
+        code:
+          type: string
+          example: en
+        is_available:
+          type: boolean
+          example: true
+      required:
+        - id
+        - name
+        - code
+        - is_available
+    Error:
+      type: object
+      properties:
+        status:
+          type: string
+          example: error
+        message:
+          type: string
+      required:
+        - status
+        - message
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
